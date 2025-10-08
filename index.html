@@ -1,0 +1,1592 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Eko Editor - AI Canvas</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #0a0a0a;
+            color: #ffffff;
+            overflow: hidden;
+            height: 100vh;
+            position: relative;
+        }
+
+        /* Header */
+        .header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            padding: 20px 40px;
+            background: linear-gradient(to bottom, rgba(0,0,0,0.9), transparent);
+            backdrop-filter: blur(20px);
+            z-index: 1000;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header h1 {
+            font-size: 20px;
+            font-weight: 600;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .header-controls {
+            display: flex;
+            gap: 16px;
+            align-items: center;
+        }
+
+        .zoom-indicator {
+            padding: 8px 16px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 20px;
+            font-size: 13px;
+            min-width: 80px;
+            text-align: center;
+        }
+
+        .export-btn {
+            padding: 10px 20px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            border: none;
+            border-radius: 10px;
+            color: white;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 14px;
+        }
+
+        .export-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .export-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        /* Workspace */
+        .workspace {
+            position: fixed;
+            top: 80px;
+            left: 0;
+            right: 0;
+            bottom: 60px;
+            overflow: hidden;
+            background: radial-gradient(circle at center, #1a1a2e 0%, #0a0a0a 100%);
+            cursor: grab;
+        }
+
+        .workspace.dragging {
+            cursor: grabbing;
+        }
+
+        .canvas-container {
+            position: absolute;
+            width: 5000px;
+            height: 5000px;
+            transform-origin: center center;
+            transition: none;
+        }
+
+        /* Canvas Wrapper */
+        .canvas-wrapper {
+            position: absolute;
+            background: rgba(0, 0, 0, 0.8);
+            border: 3px solid rgba(255, 255, 255, 0.2);
+            border-radius: 20px;
+            padding: 16px;
+            transition: all 0.3s ease;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+        }
+
+        .canvas-wrapper:hover {
+            border-color: rgba(255, 255, 255, 0.4);
+            box-shadow: 0 15px 50px rgba(0, 0, 0, 0.6);
+        }
+
+        .canvas-wrapper.selected {
+            border-color: #667eea;
+            box-shadow: 0 0 30px rgba(102, 126, 234, 0.5);
+        }
+
+        .canvas-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 12px;
+            margin-bottom: 12px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 8px;
+        }
+
+        .canvas-title {
+            font-size: 14px;
+            opacity: 0.9;
+            font-weight: 600;
+        }
+
+        .canvas-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .canvas-btn {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 12px;
+            transition: all 0.2s;
+        }
+
+        .canvas-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+            transform: scale(1.1);
+        }
+
+        /* Main Canvas */
+        .main-canvas {
+            position: relative;
+            width: 800px;
+            height: 600px;
+            background: #000;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        /* Empty State */
+        .empty-state {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            gap: 24px;
+        }
+
+        .generate-btn {
+            padding: 20px 60px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            border: none;
+            border-radius: 16px;
+            color: white;
+            font-weight: 600;
+            font-size: 18px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 8px 32px rgba(102, 126, 234, 0.4);
+        }
+
+        .generate-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 12px 40px rgba(102, 126, 234, 0.6);
+        }
+
+        .generate-btn:active {
+            transform: translateY(-1px);
+        }
+
+        .prompt-hint {
+            font-size: 14px;
+            opacity: 0.6;
+            max-width: 400px;
+            text-align: center;
+            line-height: 1.6;
+        }
+
+        /* Loading State */
+        .loading-state {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            gap: 24px;
+        }
+
+        .spinner {
+            width: 60px;
+            height: 60px;
+            border: 3px solid rgba(102, 126, 234, 0.2);
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Canvas Image */
+        .canvas-image {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            object-position: center;
+            user-select: none;
+        }
+
+        /* Object Overlay */
+        .object-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 100;
+        }
+
+        /* Detectable Objects */
+        .object-region {
+            position: absolute;
+            cursor: pointer;
+            pointer-events: all;
+            transition: all 0.2s ease;
+        }
+
+        .object-region:hover {
+            filter: drop-shadow(0 0 20px rgba(59, 130, 246, 0.8));
+        }
+
+        .object-region:hover::before {
+            content: '';
+            position: absolute;
+            top: -2px;
+            left: -2px;
+            right: -2px;
+            bottom: -2px;
+            background: rgba(59, 130, 246, 0.2);
+            border: 2px solid rgba(59, 130, 246, 0.8);
+            border-radius: 8px;
+            animation: pulse-border 1.5s infinite;
+        }
+
+        @keyframes pulse-border {
+            0%, 100% { 
+                opacity: 0.8;
+                transform: scale(1);
+            }
+            50% { 
+                opacity: 1;
+                transform: scale(1.02);
+            }
+        }
+
+        .object-region[data-type="main-product"]:hover::before {
+            background: linear-gradient(45deg, rgba(147, 51, 234, 0.2), rgba(59, 130, 246, 0.2));
+            border-color: rgba(147, 51, 234, 0.8);
+        }
+
+        /* Add Variant Button */
+        .add-variant-btn {
+            position: absolute;
+            right: -40px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, rgba(102, 126, 234, 0.9), rgba(118, 75, 162, 0.9));
+            backdrop-filter: blur(10px);
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 40px;
+            color: white;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            z-index: 20;
+            box-shadow: 0 4px 20px rgba(102, 126, 234, 0.5);
+        }
+
+        .add-variant-btn:hover {
+            background: linear-gradient(135deg, rgba(102, 126, 234, 1), rgba(118, 75, 162, 1));
+            transform: translateY(-50%) scale(1.15);
+            box-shadow: 0 6px 30px rgba(102, 126, 234, 0.8);
+            border-color: rgba(255, 255, 255, 0.5);
+        }
+
+        /* Connection line between canvases */
+        .canvas-wrapper::after {
+            content: '';
+            position: absolute;
+            right: -80px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 80px;
+            height: 2px;
+            background: linear-gradient(90deg, rgba(102, 126, 234, 0.3), transparent);
+            pointer-events: none;
+            z-index: 5;
+        }
+
+        /* Bottom Toolbar */
+        .toolbar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            padding: 16px 40px;
+            background: rgba(20, 20, 30, 0.95);
+            backdrop-filter: blur(20px);
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .selected-count {
+            padding: 8px 16px;
+            background: rgba(102, 126, 234, 0.2);
+            border: 1px solid rgba(102, 126, 234, 0.5);
+            border-radius: 20px;
+            font-size: 13px;
+        }
+
+        .toolbar-actions {
+            display: flex;
+            gap: 12px;
+        }
+
+        .toolbar-btn {
+            padding: 10px 20px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 10px;
+            color: white;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 13px;
+        }
+
+        .toolbar-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+            transform: translateY(-2px);
+        }
+
+        .toolbar-btn.primary {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            border: none;
+        }
+
+        .toolbar-btn.primary:hover {
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        /* Radial Menu */
+        .radial-menu {
+            position: fixed;
+            width: 320px;
+            height: 320px;
+            display: none;
+            z-index: 2000;
+        }
+
+        .radial-menu.active {
+            display: block;
+            animation: menuFadeIn 0.3s ease-out;
+        }
+
+        @keyframes menuFadeIn {
+            from {
+                opacity: 0;
+                transform: scale(0.8);
+            }
+            to {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+
+        /* Blue ring background */
+        .radial-menu::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 280px;
+            height: 280px;
+            border-radius: 50%;
+            background: radial-gradient(circle at center, 
+                transparent 40px,
+                rgba(59, 130, 246, 0.1) 45px,
+                rgba(59, 130, 246, 0.15) 140px,
+                transparent 145px
+            );
+            border: 2px solid rgba(59, 130, 246, 0.3);
+            box-shadow: 
+                inset 0 0 30px rgba(59, 130, 246, 0.2),
+                0 0 50px rgba(59, 130, 246, 0.3);
+        }
+
+        /* Center hub */
+        .menu-center {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 80px;
+            height: 80px;
+            background: linear-gradient(135deg, rgba(59, 130, 246, 0.2), rgba(96, 165, 250, 0.2));
+            border: 2px solid rgba(59, 130, 246, 0.8);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: 600;
+            backdrop-filter: blur(20px);
+            z-index: 10;
+            box-shadow: 
+                0 0 40px rgba(59, 130, 246, 0.5),
+                inset 0 0 20px rgba(59, 130, 246, 0.3);
+            color: #ffffff;
+        }
+
+        /* Object Tooltip */
+        .object-tooltip {
+            position: absolute;
+            padding: 8px 12px;
+            background: rgba(0, 0, 0, 0.9);
+            border: 1px solid rgba(59, 130, 246, 0.5);
+            border-radius: 8px;
+            font-size: 12px;
+            color: white;
+            pointer-events: none;
+            opacity: 0;
+            transform: translateY(-10px);
+            transition: all 0.2s ease;
+            z-index: 3000;
+            white-space: nowrap;
+        }
+
+        .object-tooltip.active {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .object-type-label {
+            font-size: 10px;
+            color: #3b82f6;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-top: 2px;
+        }
+
+        /* Zoom Controls */
+        .zoom-controls {
+            position: fixed;
+            right: 20px;
+            bottom: 80px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            z-index: 1000;
+        }
+
+        .zoom-hint {
+            position: absolute;
+            right: 70px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: rgba(0, 0, 0, 0.8);
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-size: 11px;
+            white-space: nowrap;
+            opacity: 0;
+            transition: opacity 0.3s;
+            pointer-events: none;
+        }
+
+        .zoom-controls:hover .zoom-hint {
+            opacity: 1;
+        }
+
+        .zoom-btn {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: rgba(20, 20, 30, 0.9);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 18px;
+            transition: all 0.2s;
+            backdrop-filter: blur(20px);
+        }
+
+        .zoom-btn:hover {
+            background: rgba(102, 126, 234, 0.2);
+            border-color: rgba(102, 126, 234, 0.5);
+            transform: scale(1.1);
+        }
+
+        /* Generation Modal */
+        .modal-backdrop {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(10px);
+            display: none;
+            z-index: 3000;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .modal-backdrop.active {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 1;
+        }
+
+        .generation-modal {
+            background: rgba(20, 20, 30, 0.95);
+            border: 2px solid rgba(102, 126, 234, 0.3);
+            border-radius: 20px;
+            padding: 32px;
+            width: 90%;
+            max-width: 600px;
+            max-height: 90vh;
+            overflow-y: auto;
+            transform: scale(0.9);
+            transition: transform 0.3s ease;
+        }
+
+        .modal-backdrop.active .generation-modal {
+            transform: scale(1);
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+        }
+
+        .modal-title {
+            font-size: 24px;
+            font-weight: 600;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .close-modal {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.1);
+            border: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 16px;
+            transition: all 0.2s;
+        }
+
+        .close-modal:hover {
+            background: rgba(255, 255, 255, 0.2);
+            transform: scale(1.1);
+        }
+
+        .modal-section {
+            margin-bottom: 24px;
+        }
+
+        .section-label {
+            font-size: 14px;
+            font-weight: 500;
+            margin-bottom: 12px;
+            opacity: 0.9;
+        }
+
+        .prompt-input {
+            width: 100%;
+            padding: 16px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 12px;
+            color: white;
+            font-size: 16px;
+            resize: vertical;
+            min-height: 100px;
+            transition: all 0.3s;
+        }
+
+        .prompt-input:focus {
+            outline: none;
+            border-color: rgba(102, 126, 234, 0.5);
+            background: rgba(255, 255, 255, 0.08);
+        }
+
+        .upload-area {
+            border: 2px dashed rgba(102, 126, 234, 0.5);
+            border-radius: 12px;
+            padding: 40px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .upload-area:hover {
+            border-color: rgba(102, 126, 234, 0.8);
+            background: rgba(102, 126, 234, 0.05);
+        }
+
+        .upload-area.has-image {
+            padding: 0;
+            height: 200px;
+        }
+
+        .upload-preview {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            border-radius: 10px;
+        }
+
+        .upload-label {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 12px;
+            cursor: pointer;
+        }
+
+        .upload-icon {
+            font-size: 48px;
+            opacity: 0.5;
+        }
+
+        .upload-text {
+            font-size: 14px;
+            opacity: 0.7;
+        }
+
+        .upload-input {
+            display: none;
+        }
+
+        .remove-image {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            width: 32px;
+            height: 32px;
+            background: rgba(0, 0, 0, 0.8);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 16px;
+            opacity: 0;
+            transition: all 0.2s;
+        }
+
+        .upload-area.has-image:hover .remove-image {
+            opacity: 1;
+        }
+
+        .modal-actions {
+            display: flex;
+            gap: 12px;
+            margin-top: 32px;
+        }
+
+        .modal-btn {
+            flex: 1;
+            padding: 14px 28px;
+            border-radius: 12px;
+            border: none;
+            font-weight: 600;
+            font-size: 16px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .modal-btn.secondary {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: white;
+        }
+
+        .modal-btn.secondary:hover {
+            background: rgba(255, 255, 255, 0.2);
+            transform: translateY(-2px);
+        }
+
+        .modal-btn.primary {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+        }
+
+        .modal-btn.primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .generation-options {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 12px;
+            margin-top: 16px;
+        }
+
+        .option-chip {
+            padding: 8px 16px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 20px;
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-align: center;
+        }
+
+        .option-chip:hover {
+            background: rgba(102, 126, 234, 0.2);
+            border-color: rgba(102, 126, 234, 0.5);
+        }
+
+        .option-chip.selected {
+            background: rgba(102, 126, 234, 0.3);
+            border-color: rgba(102, 126, 234, 0.8);
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <div class="header">
+        <h1>Eko Editor • AI Canvas</h1>
+        <div class="header-controls">
+            <div class="zoom-indicator">100%</div>
+            <button class="export-btn" onclick="exportToVideo()" id="exportBtn" disabled>
+                Export to Video Editor →
+            </button>
+        </div>
+    </div>
+
+    <!-- Info Message -->
+    <div class="info-message" id="infoMessage">
+        Right-click on objects to create variations
+    </div>
+
+    <!-- Workspace -->
+    <div class="workspace" id="workspace">
+        <div class="canvas-container" id="canvasContainer">
+            <!-- Initial Empty Canvas -->
+            <div class="canvas-wrapper" style="left: 2500px; top: 2500px;" data-canvas-id="1">
+                <div class="canvas-header">
+                    <span class="canvas-title">Canvas 1</span>
+                    <div class="canvas-actions">
+                        <button class="canvas-btn" onclick="deleteCanvas(1)" title="Delete" style="display: none;">🗑️</button>
+                    </div>
+                </div>
+                <div class="main-canvas" id="canvas-1">
+                    <div class="empty-state">
+                        <button class="generate-btn" onclick="generateInitialImage(1)">
+                            🪄 Generate AI Image
+                        </button>
+                        <div class="prompt-hint">
+                            Click to generate your first AI image.<br>
+                            Once generated, right-click on objects to create variations.
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bottom Toolbar -->
+    <div class="toolbar">
+        <div class="selected-count">
+            <span id="selectedCount">0</span> canvases selected
+        </div>
+        <div class="toolbar-actions">
+            <button class="toolbar-btn" onclick="selectAll()">Select All</button>
+            <button class="toolbar-btn" onclick="clearSelection()">Clear Selection</button>
+            <button class="toolbar-btn primary" onclick="sendToVideoEditor()" id="sendToVideoBtn" style="display: none;">
+                Send to Video Editor
+            </button>
+        </div>
+    </div>
+
+    <!-- Zoom Controls -->
+    <div class="zoom-controls">
+        <div class="zoom-hint">Scroll to zoom</div>
+        <button class="zoom-btn" onclick="zoomIn()" title="Zoom In">+</button>
+        <button class="zoom-btn" onclick="zoomOut()" title="Zoom Out">−</button>
+        <button class="zoom-btn" onclick="resetZoom()" title="Reset Zoom">⟲</button>
+    </div>
+
+    <!-- Radial Menu Container -->
+    <div class="radial-menu" id="radialMenu">
+        <div class="menu-center">
+            <span id="selectedObject">Object</span>
+        </div>
+        <!-- Menu items will be dynamically inserted here -->
+    </div>
+
+    <!-- Object Tooltip -->
+    <div class="object-tooltip" id="objectTooltip">
+        <div id="tooltipName">Object Name</div>
+        <div class="object-type-label" id="tooltipType">Type</div>
+    </div>
+
+    <!-- Generation Modal -->
+    <div class="modal-backdrop" id="generationModal">
+        <div class="generation-modal">
+            <div class="modal-header">
+                <h2 class="modal-title" id="modalTitle">Generate Variant</h2>
+                <button class="close-modal" onclick="closeGenerationModal()">✕</button>
+            </div>
+            
+            <div class="modal-section">
+                <div class="section-label">Describe what you want</div>
+                <textarea class="prompt-input" id="promptInput" placeholder="E.g., 'Change the bowl to a modern glass design with blue tints' or 'Place the product in a minimalist kitchen setting'"></textarea>
+            </div>
+
+            <div class="modal-section">
+                <div class="section-label">Reference Image (Optional)</div>
+                <div class="upload-area" id="uploadArea">
+                    <label class="upload-label" for="imageUpload">
+                        <div class="upload-icon">📸</div>
+                        <div class="upload-text">Click to upload or drag & drop<br><small>PNG, JPG up to 10MB</small></div>
+                    </label>
+                    <input type="file" id="imageUpload" class="upload-input" accept="image/*" onchange="handleImageUpload(event)">
+                    <button class="remove-image" onclick="removeUploadedImage()" style="display: none;">✕</button>
+                </div>
+            </div>
+
+            <div class="modal-section" id="optionsSection">
+                <div class="section-label">Quick Options</div>
+                <div class="generation-options" id="generationOptions">
+                    <!-- Options will be dynamically populated based on action -->
+                </div>
+            </div>
+
+            <div class="modal-actions">
+                <button class="modal-btn secondary" onclick="closeGenerationModal()">Cancel</button>
+                <button class="modal-btn primary" onclick="generateWithOptions()">Generate</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentZoom = 1;
+        let selectedCanvases = new Set();
+        let canvasCount = 1;
+        let generatedCount = 0;
+        let isDragging = false;
+        let dragOffset = { x: 0, y: 0 };
+        let workspaceOffset = { x: -2000, y: -2000 };
+
+        const workspace = document.getElementById('workspace');
+        const canvasContainer = document.getElementById('canvasContainer');
+        const zoomIndicator = document.querySelector('.zoom-indicator');
+        const selectedCountEl = document.getElementById('selectedCount');
+        const sendToVideoBtn = document.getElementById('sendToVideoBtn');
+        const exportBtn = document.getElementById('exportBtn');
+        const infoMessage = document.getElementById('infoMessage');
+        const radialMenu = document.getElementById('radialMenu');
+        const selectedObjectText = document.getElementById('selectedObject');
+        const objectTooltip = document.getElementById('objectTooltip');
+        const tooltipName = document.getElementById('tooltipName');
+        const tooltipType = document.getElementById('tooltipType');
+        
+        let currentAction = null;
+        let uploadedImage = null;
+        let pendingCanvasId = null;
+
+        // Generation options for different actions
+        const actionOptions = {
+            variants: ['Modern Style', 'Classic Style', 'Minimalist', 'Luxurious', 'Rustic'],
+            materials: ['Glass', 'Ceramic', 'Wood', 'Metal', 'Marble', 'Plastic'],
+            colors: ['Blue Tones', 'Warm Colors', 'Monochrome', 'Vibrant', 'Pastel', 'Earth Tones'],
+            context: ['Kitchen', 'Dining Room', 'Outdoor', 'Studio', 'Restaurant', 'Shop Display'],
+            lighting: ['Soft Morning', 'Golden Hour', 'Studio Lighting', 'Natural Light', 'Dramatic', 'Night'],
+            scene: ['Beach', 'Forest', 'Urban', 'Garden', 'Mountain', 'Indoor'],
+            weather: ['Sunny', 'Cloudy', 'Rainy', 'Foggy', 'Snowy', 'Stormy'],
+            season: ['Spring', 'Summer', 'Autumn', 'Winter'],
+            time: ['Dawn', 'Morning', 'Noon', 'Afternoon', 'Sunset', 'Night']
+        };
+
+        // Object display names and types
+        const objectInfo = {
+            bowl: { name: 'Designer Bowl', type: 'Main Product' },
+            plates: { name: 'Ceramic Plates', type: 'Supporting Product' },
+            'oil-bottle': { name: 'Olive Oil', type: 'Supporting Product' },
+            lemons: { name: 'Fresh Lemons', type: 'Supporting Product' },
+            napkin: { name: 'Linen Napkin', type: 'Supporting Product' },
+            table: { name: 'Wooden Table', type: 'Background' },
+            hedge: { name: 'Garden Hedge', type: 'Background' },
+            sky: { name: 'Sky', type: 'Atmosphere' }
+        };
+
+        // Menu configurations for different object types
+        const menuConfigs = {
+            'main-product': [
+                { action: 'variants', icon: '🎨', text: 'Show Variants' },
+                { action: 'materials', icon: '🪵', text: 'Materials' },
+                { action: 'colors', icon: '🎯', text: 'Colors' },
+                { action: 'angles', icon: '📐', text: 'Angles' },
+                { action: 'lighting', icon: '💡', text: 'Lighting' },
+                { action: 'context', icon: '🏠', text: 'Context' }
+            ],
+            product: [
+                { action: 'replace', icon: '🔄', text: 'Replace' },
+                { action: 'remove', icon: '🗑️', text: 'Remove' },
+                { action: 'style', icon: '🎨', text: 'Change Style' },
+                { action: 'color', icon: '🎯', text: 'Recolor' },
+                { action: 'enhance', icon: '✨', text: 'Enhance' }
+            ],
+            background: [
+                { action: 'scene', icon: '🏞️', text: 'Change Scene' },
+                { action: 'blur', icon: '💫', text: 'Blur' },
+                { action: 'lighting', icon: '💡', text: 'Lighting' },
+                { action: 'season', icon: '🍂', text: 'Season' },
+                { action: 'time', icon: '🌅', text: 'Time of Day' }
+            ],
+            sky: [
+                { action: 'weather', icon: '☁️', text: 'Weather' },
+                { action: 'sunset', icon: '🌅', text: 'Sunset' },
+                { action: 'night', icon: '🌙', text: 'Night' },
+                { action: 'dramatic', icon: '⛈️', text: 'Dramatic' }
+            ]
+        };
+
+        // Center the view on the initial canvas
+        canvasContainer.style.transform = `translate(${workspaceOffset.x}px, ${workspaceOffset.y}px) scale(${currentZoom})`;
+
+        // Initialize event listeners
+        initializeEventListeners();
+
+        function initializeEventListeners() {
+            // Canvas selection
+            document.addEventListener('click', function(e) {
+                if (e.target.closest('.canvas-wrapper') && !e.target.closest('.canvas-actions') && 
+                    !e.target.closest('.generate-btn') && !e.target.closest('.add-variant-btn')) {
+                    const canvas = e.target.closest('.canvas-wrapper');
+                    if (canvas.querySelector('.canvas-image')) { // Only select if image exists
+                        toggleCanvasSelection(canvas);
+                    }
+                }
+            });
+
+            // Prevent default context menu
+            document.addEventListener('contextmenu', e => e.preventDefault());
+
+            // Canvas dragging/panning
+            setupCanvasDragging();
+
+            // Mouse wheel zoom
+            workspace.addEventListener('wheel', function(e) {
+                e.preventDefault();
+                const delta = e.deltaY > 0 ? 0.9 : 1.1;
+                setZoom(currentZoom * delta);
+            });
+
+            // Hide menu on click outside
+            document.addEventListener('click', function(e) {
+                if (!radialMenu.contains(e.target)) {
+                    radialMenu.classList.remove('active');
+                }
+            });
+
+            // Keyboard shortcuts
+            document.addEventListener('keydown', function(e) {
+                if (e.key === 'Escape') {
+                    radialMenu.classList.remove('active');
+                    clearSelection();
+                }
+                if (e.ctrlKey || e.metaKey) {
+                    if (e.key === 'a') {
+                        e.preventDefault();
+                        selectAll();
+                    }
+                }
+            });
+        }
+
+        function generateInitialImage(canvasId) {
+            const canvas = document.getElementById(`canvas-${canvasId}`);
+            const wrapper = canvas.closest('.canvas-wrapper');
+            
+            // Show loading state
+            canvas.innerHTML = `
+                <div class="loading-state">
+                    <div class="spinner"></div>
+                    <div style="font-size: 16px; opacity: 0.8;">Generating AI image...</div>
+                </div>
+            `;
+
+            // Simulate AI generation
+            setTimeout(() => {
+                generatedCount++;
+                
+                // Add generated image with object detection
+                canvas.innerHTML = `
+                    <img src="./c0x4uB3X1R-O4tUH9Sllw_20f4493e92344469823d059571e21a02.jpg" alt="AI Generated Image" class="canvas-image">
+                    <div class="object-overlay">
+                        <!-- Background Objects -->
+                        <div class="object-region" style="left: 5%; top: 60%; width: 90%; height: 30%; z-index: 10;" data-object="table" data-type="background"></div>
+                        <div class="object-region" style="left: 0%; top: 10%; width: 100%; height: 25%; z-index: 10;" data-object="hedge" data-type="background"></div>
+                        <div class="object-region" style="left: 0%; top: 0%; width: 100%; height: 10%; z-index: 10;" data-object="sky" data-type="sky"></div>
+                        
+                        <!-- Main Product -->
+                        <div class="object-region" style="left: 40%; top: 30%; width: 20%; height: 20%; z-index: 50;" data-object="bowl" data-type="main-product"></div>
+                        
+                        <!-- Supporting Products -->
+                        <div class="object-region" style="left: 25%; top: 50%; width: 15%; height: 10%; z-index: 30;" data-object="plates" data-type="product"></div>
+                        <div class="object-region" style="left: 60%; top: 35%; width: 10%; height: 15%; z-index: 30;" data-object="oil-bottle" data-type="product"></div>
+                        <div class="object-region" style="left: 45%; top: 50%; width: 12%; height: 8%; z-index: 30;" data-object="lemons" data-type="product"></div>
+                        <div class="object-region" style="left: 15%; top: 45%; width: 10%; height: 12%; z-index: 30;" data-object="napkin" data-type="product"></div>
+                    </div>
+                `;
+
+                // Add the + button
+                if (!wrapper.querySelector('.add-variant-btn')) {
+                    const addBtn = document.createElement('button');
+                    addBtn.className = 'add-variant-btn';
+                    addBtn.setAttribute('onclick', `addVariant(${canvasId})`);
+                    addBtn.setAttribute('title', 'Create Variant');
+                    addBtn.textContent = '+';
+                    wrapper.appendChild(addBtn);
+                }
+
+                // Show delete button
+                const deleteBtn = wrapper.querySelector('.canvas-btn');
+                if (deleteBtn) deleteBtn.style.display = 'flex';
+
+                // Update title
+                wrapper.querySelector('.canvas-title').textContent = 'Original';
+
+                // Setup object detection
+                const regions = canvas.querySelectorAll('.object-region');
+                setupObjectDetectionForRegions(regions);
+
+                // Enable export button
+                exportBtn.disabled = false;
+
+                // Show info message
+                showInfoMessage();
+            }, 3000);
+        }
+
+        function showInfoMessage() {
+            infoMessage.classList.add('show');
+            setTimeout(() => {
+                infoMessage.classList.remove('show');
+            }, 5000);
+        }
+
+        function setupObjectDetectionForRegions(regions) {
+            regions.forEach(obj => {
+                // Mouse enter - show tooltip
+                obj.addEventListener('mouseenter', function(e) {
+                    const objectName = this.dataset.object;
+                    const objectType = this.getAttribute('data-type') || 'product';
+                    const info = objectInfo[objectName];
+                    
+                    if (info) {
+                        tooltipName.textContent = info.name;
+                        tooltipType.textContent = info.type;
+                        objectTooltip.classList.add('active');
+                        updateTooltipPosition(e);
+                    }
+                });
+                
+                // Mouse move - update tooltip position
+                obj.addEventListener('mousemove', function(e) {
+                    updateTooltipPosition(e);
+                });
+                
+                // Mouse leave - hide tooltip
+                obj.addEventListener('mouseleave', function() {
+                    objectTooltip.classList.remove('active');
+                });
+                
+                // Right click - show menu
+                obj.addEventListener('contextmenu', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const objectType = this.getAttribute('data-type') || 'product';
+                    showRadialMenu(e.pageX, e.pageY, this.dataset.object, objectType);
+                    objectTooltip.classList.remove('active');
+                });
+            });
+        }
+
+        function updateTooltipPosition(e) {
+            const x = e.pageX;
+            const y = e.pageY - 40;
+            objectTooltip.style.left = x + 'px';
+            objectTooltip.style.top = y + 'px';
+        }
+
+        function setupCanvasDragging() {
+            // Workspace panning
+            workspace.addEventListener('mousedown', function(e) {
+                if (e.target === workspace || e.target.classList.contains('canvas-container')) {
+                    isDragging = true;
+                    workspace.classList.add('dragging');
+                    dragOffset.x = e.clientX - workspaceOffset.x;
+                    dragOffset.y = e.clientY - workspaceOffset.y;
+                    e.preventDefault();
+                }
+            });
+
+            document.addEventListener('mousemove', function(e) {
+                if (isDragging) {
+                    workspaceOffset.x = e.clientX - dragOffset.x;
+                    workspaceOffset.y = e.clientY - dragOffset.y;
+                    updateCanvasTransform();
+                }
+            });
+
+            document.addEventListener('mouseup', function() {
+                isDragging = false;
+                workspace.classList.remove('dragging');
+            });
+        }
+
+        
+// ---------- CUSTOM DEFAULT IMAGE ----------
+const DEFAULT_IMAGE = './c0x4uB3X1R-O4tUH9Sllw_20f4493e92344469823d059571e21a02.jpg';
+
+function updateCanvasTransform() {
+            canvasContainer.style.transform = `translate(${workspaceOffset.x}px, ${workspaceOffset.y}px) scale(${currentZoom})`;
+        }
+
+        // Canvas management functions
+        function addVariant(fromCanvasId, imgSrc = null) {
+            canvasCount++;
+            const sourceCanvas = document.querySelector(`[data-canvas-id="${fromCanvasId}"]`);
+            const sourceLeft = parseInt(sourceCanvas.style.left);
+            const sourceTop = parseInt(sourceCanvas.style.top);
+            
+            const newCanvas = document.createElement('div');
+            newCanvas.className = 'canvas-wrapper';
+            newCanvas.style.left = (sourceLeft + 900) + 'px';
+            newCanvas.style.top = sourceTop + 'px';
+            newCanvas.setAttribute('data-canvas-id', canvasCount);
+            
+            newCanvas.innerHTML = `
+                <div class="canvas-header">
+                    <span class="canvas-title">Variant ${canvasCount - 1}</span>
+                    <div class="canvas-actions">
+                        <button class="canvas-btn" onclick="deleteCanvas(${canvasCount})" title="Delete">🗑️</button>
+                    </div>
+                </div>
+                <div class="main-canvas">
+                    <div class="loading-state">
+                        <div class="spinner"></div>
+                        <div style="font-size: 16px; opacity: 0.8;">Generating variant...</div>
+                    </div>
+                </div>
+                <button class="add-variant-btn" onclick="addVariant(${canvasCount})" title="Create Variant">+</button>
+            `;
+            
+            canvasContainer.appendChild(newCanvas);
+            
+            // Simulate variant generation
+            setTimeout(() => {
+                const src = imgSrc || DEFAULT_IMAGE;
+        const canvas = newCanvas.querySelector('.main-canvas');
+                canvas.innerHTML = `
+                    <img src="${src}" alt="Generated variant" class="canvas-image" style="filter: hue-rotate(${Math.random() * 360}deg) saturate(${0.8 + Math.random() * 0.4})">
+                    <div class="object-overlay">
+                        <div class="object-region" style="left: 5%; top: 60%; width: 90%; height: 30%; z-index: 10;" data-object="table" data-type="background"></div>
+                        <div class="object-region" style="left: 0%; top: 10%; width: 100%; height: 25%; z-index: 10;" data-object="hedge" data-type="background"></div>
+                        <div class="object-region" style="left: 0%; top: 0%; width: 100%; height: 10%; z-index: 10;" data-object="sky" data-type="sky"></div>
+                        <div class="object-region" style="left: 40%; top: 30%; width: 20%; height: 20%; z-index: 50;" data-object="bowl" data-type="main-product"></div>
+                        <div class="object-region" style="left: 25%; top: 50%; width: 15%; height: 10%; z-index: 30;" data-object="plates" data-type="product"></div>
+                        <div class="object-region" style="left: 60%; top: 35%; width: 10%; height: 15%; z-index: 30;" data-object="oil-bottle" data-type="product"></div>
+                        <div class="object-region" style="left: 45%; top: 50%; width: 12%; height: 8%; z-index: 30;" data-object="lemons" data-type="product"></div>
+                        <div class="object-region" style="left: 15%; top: 45%; width: 10%; height: 12%; z-index: 30;" data-object="napkin" data-type="product"></div>
+                    </div>
+                `;
+                
+                // Setup object detection for the new canvas
+                const newRegions = canvas.querySelectorAll('.object-region');
+                setupObjectDetectionForRegions(newRegions);
+            }, 2000);
+        }
+
+        function deleteCanvas(id) {
+            if (confirm('Delete this canvas?')) {
+                const canvas = document.querySelector(`[data-canvas-id="${id}"]`);
+                if (canvas) {
+                    canvas.remove();
+                    selectedCanvases.delete(id);
+                    updateSelectedCount();
+                }
+            }
+        }
+
+        function toggleCanvasSelection(canvas) {
+            const id = parseInt(canvas.getAttribute('data-canvas-id'));
+            if (selectedCanvases.has(id)) {
+                selectedCanvases.delete(id);
+                canvas.classList.remove('selected');
+            } else {
+                selectedCanvases.add(id);
+                canvas.classList.add('selected');
+            }
+            updateSelectedCount();
+        }
+
+        function updateSelectedCount() {
+            selectedCountEl.textContent = selectedCanvases.size;
+            sendToVideoBtn.style.display = selectedCanvases.size > 0 ? 'inline-block' : 'none';
+        }
+
+        function selectAll() {
+            document.querySelectorAll('.canvas-wrapper').forEach(canvas => {
+                if (canvas.querySelector('.canvas-image')) { // Only select canvases with images
+                    const id = parseInt(canvas.getAttribute('data-canvas-id'));
+                    selectedCanvases.add(id);
+                    canvas.classList.add('selected');
+                }
+            });
+            updateSelectedCount();
+        }
+
+        function clearSelection() {
+            selectedCanvases.clear();
+            document.querySelectorAll('.canvas-wrapper').forEach(canvas => {
+                canvas.classList.remove('selected');
+            });
+            updateSelectedCount();
+        }
+
+        // Zoom functions
+        function setZoom(zoom) {
+            currentZoom = Math.max(0.1, Math.min(3, zoom));
+            updateCanvasTransform();
+            zoomIndicator.textContent = Math.round(currentZoom * 100) + '%';
+        }
+
+        function zoomIn() {
+            setZoom(currentZoom + 0.1);
+        }
+
+        function zoomOut() {
+            setZoom(currentZoom - 0.1);
+        }
+
+        function resetZoom() {
+            setZoom(1);
+        }
+
+        // Export functions
+        function exportToVideo() {
+            selectAll();
+            sendToVideoEditor();
+        }
+
+        function sendToVideoEditor() {
+            const selectedIds = Array.from(selectedCanvases);
+            console.log('Sending canvases to video editor:', selectedIds);
+            alert(`Sending ${selectedIds.length} canvases to video editor for sequencing and animation...`);
+        }
+
+        // Radial menu functions
+        function createMenuItems(type) {
+            const existingItems = radialMenu.querySelectorAll('.menu-item');
+            existingItems.forEach(item => item.remove());
+
+            const config = menuConfigs[type] || menuConfigs.product;
+            
+            config.forEach((item, index) => {
+                const menuItem = document.createElement('div');
+                menuItem.className = 'menu-item';
+                menuItem.setAttribute('data-action', item.action);
+                menuItem.innerHTML = `
+                    <div class="menu-item-icon">${item.icon}</div>
+                    <div class="menu-item-text">${item.text}</div>
+                `;
+                
+                const angle = (index * 360 / config.length) - 90;
+                const radius = 120;
+                const x = Math.cos(angle * Math.PI / 180) * radius;
+                const y = Math.sin(angle * Math.PI / 180) * radius;
+                
+                menuItem.style.cssText = `
+                    position: absolute;
+                    width: 90px;
+                    height: 90px;
+                    background: radial-gradient(circle at center, rgba(59, 130, 246, 0.15), rgba(59, 130, 246, 0.05));
+                    border: 1.5px solid rgba(59, 130, 246, 0.4);
+                    backdrop-filter: blur(20px);
+                    display: flex;
+                    flex-direction: column;
+                    align-items: center;
+                    justify-content: center;
+                    cursor: pointer;
+                    transition: all 0.3s ease;
+                    font-size: 11px;
+                    border-radius: 50%;
+                    box-shadow: 0 4px 20px rgba(59, 130, 246, 0.2), inset 0 0 15px rgba(59, 130, 246, 0.1);
+                    text-align: center;
+                    padding: 8px;
+                    color: white;
+                    transform: translate(-50%, -50%) translate(${x}px, ${y}px);
+                `;
+                
+                radialMenu.appendChild(menuItem);
+                
+                menuItem.addEventListener('click', function() {
+                    handleAction(this.getAttribute('data-action'), currentObject);
+                });
+                
+                menuItem.addEventListener('mouseenter', function() {
+                    this.style.background = 'radial-gradient(circle at center, rgba(59, 130, 246, 0.4), rgba(59, 130, 246, 0.2))';
+                    this.style.borderColor = 'rgba(59, 130, 246, 0.8)';
+                    this.style.transform = `translate(-50%, -50%) translate(${x}px, ${y}px) scale(1.1)`;
+                });
+                
+                menuItem.addEventListener('mouseleave', function() {
+                    this.style.background = 'radial-gradient(circle at center, rgba(59, 130, 246, 0.15), rgba(59, 130, 246, 0.05))';
+                    this.style.borderColor = 'rgba(59, 130, 246, 0.4)';
+                    this.style.transform = `translate(-50%, -50%) translate(${x}px, ${y}px) scale(1)`;
+                });
+            });
+        }
+
+        function showRadialMenu(x, y, object, type) {
+            currentObject = object;
+            currentObjectType = type;
+            selectedObjectText.textContent = object.charAt(0).toUpperCase() + object.slice(1).replace('-', ' ');
+            
+            createMenuItems(type);
+            
+            radialMenu.style.left = (x - 160) + 'px';
+            radialMenu.style.top = (y - 160) + 'px';
+            radialMenu.classList.add('active');
+        }
+
+        function handleAction(action, object) {
+            console.log(`Action: ${action} on ${object}`);
+            radialMenu.classList.remove('active');
+            
+            // Store the current action and canvas
+            currentAction = action;
+            const canvasWrapper = event.target.closest('.canvas-wrapper');
+            if (canvasWrapper) {
+                pendingCanvasId = parseInt(canvasWrapper.getAttribute('data-canvas-id'));
+            }
+            
+            // Open the generation modal
+            openGenerationModal(action, object);
+        }
+
+        function openGenerationModal(action, object) {
+            const modal = document.getElementById('generationModal');
+            const modalTitle = document.getElementById('modalTitle');
+            const optionsContainer = document.getElementById('generationOptions');
+            
+            // Set title based on action
+            const actionTitles = {
+                variants: 'Generate Style Variants',
+                materials: 'Change Material',
+                colors: 'Change Colors',
+                context: 'Change Context',
+                lighting: 'Adjust Lighting',
+                scene: 'Change Scene',
+                weather: 'Change Weather',
+                season: 'Change Season',
+                time: 'Change Time of Day',
+                replace: 'Replace Object',
+                remove: 'Remove Object',
+                style: 'Change Style',
+                enhance: 'Enhance Object'
+            };
+            
+            modalTitle.textContent = actionTitles[action] || 'Generate Variant';
+            
+            // Clear previous options
+            optionsContainer.innerHTML = '';
+            
+            // Add relevant options
+            const options = actionOptions[action];
+            if (options) {
+                options.forEach(option => {
+                    const chip = document.createElement('div');
+                    chip.className = 'option-chip';
+                    chip.textContent = option;
+                    chip.onclick = function() {
+                        document.querySelectorAll('.option-chip').forEach(c => c.classList.remove('selected'));
+                        this.classList.add('selected');
+                        // Add to prompt
+                        const promptInput = document.getElementById('promptInput');
+                        promptInput.value = `${option} style`;
+                    };
+                    optionsContainer.appendChild(chip);
+                });
+            }
+            
+            // Show modal
+            modal.classList.add('active');
+        }
+
+        function closeGenerationModal() {
+            const modal = document.getElementById('generationModal');
+            modal.classList.remove('active');
+            
+            // Reset form
+            document.getElementById('promptInput').value = '';
+            removeUploadedImage();
+            currentAction = null;
+            uploadedImage = null;
+            pendingCanvasId = null;
+        }
+
+        function handleImageUpload(event) {
+            const file = event.target.files[0];
+            if (file && file.type.startsWith('image/')) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    uploadedImage = e.target.result;
+                    const uploadArea = document.getElementById('uploadArea');
+                    uploadArea.classList.add('has-image');
+                    uploadArea.innerHTML = `
+                        <img src="${uploadedImage}" class="upload-preview" alt="Reference">
+                        <button class="remove-image" onclick="removeUploadedImage()">✕</button>
+                    `;
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+
+        function removeUploadedImage() {
+            uploadedImage = null;
+            const uploadArea = document.getElementById('uploadArea');
+            uploadArea.classList.remove('has-image');
+            uploadArea.innerHTML = `
+                <label class="upload-label" for="imageUpload">
+                    <div class="upload-icon">📸</div>
+                    <div class="upload-text">Click to upload or drag & drop<br><small>PNG, JPG up to 10MB</small></div>
+                </label>
+                <input type="file" id="imageUpload" class="upload-input" accept="image/*" onchange="handleImageUpload(event)">
+            `;
+        }
+
+        function generateWithOptions() {
+            const prompt = document.getElementById('promptInput').value;
+            
+            console.log('Generating with:', {
+                action: currentAction,
+                prompt: prompt,
+                hasReferenceImage: !!uploadedImage,
+                fromCanvas: pendingCanvasId
+            });
+            
+            // Close modal
+            closeGenerationModal();
+            
+            // Create the variant
+            if (pendingCanvasId) {
+                addVariant(pendingCanvasId, uploadedImage || DEFAULT_IMAGE);
+            }
+        }
+
+        // Allow ESC to close modal
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                const modal = document.getElementById('generationModal');
+                if (modal.classList.contains('active')) {
+                    closeGenerationModal();
+                } else {
+                    radialMenu.classList.remove('active');
+                    clearSelection();
+                }
+            }
+        });
+
+        // Drag and drop support
+        const dropZone = document.getElementById('uploadArea');
+        if (dropZone) {
+            ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+                dropZone.addEventListener(eventName, preventDefaults, false);
+            });
+
+            function preventDefaults(e) {
+                e.preventDefault();
+                e.stopPropagation();
+            }
+
+            ['dragenter', 'dragover'].forEach(eventName => {
+                dropZone.addEventListener(eventName, highlight, false);
+            });
+
+            ['dragleave', 'drop'].forEach(eventName => {
+                dropZone.addEventListener(eventName, unhighlight, false);
+            });
+
+            function highlight(e) {
+                dropZone.style.borderColor = 'rgba(102, 126, 234, 1)';
+                dropZone.style.background = 'rgba(102, 126, 234, 0.1)';
+            }
+
+            function unhighlight(e) {
+                dropZone.style.borderColor = '';
+                dropZone.style.background = '';
+            }
+
+            dropZone.addEventListener('drop', handleDrop, false);
+
+            function handleDrop(e) {
+                const dt = e.dataTransfer;
+                const files = dt.files;
+                if (files.length > 0) {
+                    const event = { target: { files: files } };
+                    handleImageUpload(event);
+                }
+            }
+        }
+    </script>
+</body>
+</html>
