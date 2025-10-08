@@ -922,6 +922,8 @@
         let isDragging = false;
         let dragOffset = { x: 0, y: 0 };
         let workspaceOffset = { x: -2000, y: -2000 };
+        // ✅ Default image (Base64 self-contained or relative path)
+const DEFAULT_IMAGE = "data:image/jpeg;base64,..."; // paste the line from DEFAULT_IMAGE_dataurl.txt
 
         const workspace = document.getElementById('workspace');
         const canvasContainer = document.getElementById('canvasContainer');
@@ -1064,8 +1066,8 @@
 
             // Simulate AI generation
             setTimeout(() => {
-                const src = imgSrc || DEFAULT_IMAGE;
-        generatedCount++;
+            const src = uploadedImage || DEFAULT_IMAGE;
+                generatedCount++;
                 
                 // Add generated image with object detection
                 canvas.innerHTML = `
