@@ -1064,11 +1064,12 @@
 
             // Simulate AI generation
             setTimeout(() => {
-                generatedCount++;
+                const src = imgSrc || DEFAULT_IMAGE;
+        generatedCount++;
                 
                 // Add generated image with object detection
                 canvas.innerHTML = `
-                    <img src="https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=1920&h=1080&fit=crop" alt="AI Generated Image" class="canvas-image">
+                    <img src="./c0x4uB3X1R-O4tUH9Sllw_20f4493e92344469823d059571e21a02.jpg" alt="AI Generated Image" class="canvas-image">
                     <div class="object-overlay">
                         <!-- Background Objects -->
                         <div class="object-region" style="left: 5%; top: 60%; width: 90%; height: 30%; z-index: 10;" data-object="table" data-type="background"></div>
@@ -1192,16 +1193,12 @@
             });
         }
 
-        
-// ---------- CUSTOM DEFAULT IMAGE ----------
-const DEFAULT_IMAGE = './c0x4uB3X1R-O4tUH9Sllw_20f4493e92344469823d059571e21a02.jpg';
-
-function updateCanvasTransform() {
+        function updateCanvasTransform() {
             canvasContainer.style.transform = `translate(${workspaceOffset.x}px, ${workspaceOffset.y}px) scale(${currentZoom})`;
         }
 
         // Canvas management functions
-        function addVariant(fromCanvasId, imgSrc = null) {
+        function addVariant(fromCanvasId) {
             canvasCount++;
             const sourceCanvas = document.querySelector(`[data-canvas-id="${fromCanvasId}"]`);
             const sourceLeft = parseInt(sourceCanvas.style.left);
@@ -1233,10 +1230,9 @@ function updateCanvasTransform() {
             
             // Simulate variant generation
             setTimeout(() => {
-                const src = imgSrc || DEFAULT_IMAGE;
-        const canvas = newCanvas.querySelector('.main-canvas');
+                const canvas = newCanvas.querySelector('.main-canvas');
                 canvas.innerHTML = `
-                    <img src="${src}" alt="Generated variant" class="canvas-image" style="filter: hue-rotate(${Math.random() * 360}deg) saturate(${0.8 + Math.random() * 0.4})">
+                    <img src="./c0x4uB3X1R-O4tUH9Sllw_20f4493e92344469823d059571e21a02.jpg" alt="Generated variant" class="canvas-image" style="filter: hue-rotate(${Math.random() * 360}deg) saturate(${0.8 + Math.random() * 0.4})">
                     <div class="object-overlay">
                         <div class="object-region" style="left: 5%; top: 60%; width: 90%; height: 30%; z-index: 10;" data-object="table" data-type="background"></div>
                         <div class="object-region" style="left: 0%; top: 10%; width: 100%; height: 25%; z-index: 10;" data-object="hedge" data-type="background"></div>
@@ -1529,7 +1525,7 @@ function updateCanvasTransform() {
             
             // Create the variant
             if (pendingCanvasId) {
-                addVariant(base, src);
+                addVariant(pendingCanvasId);
             }
         }
 
