@@ -1191,15 +1191,17 @@
                 workspace.classList.remove('dragging');
             });
         }
-        // ---------- CUSTOM DEFAULT IMAGE ----------
-            const DEFAULT_IMAGE = './c0x4uB3X1R-O4tUH9Sllw_20f4493e92344469823d059571e21a02.jpg';
 
-        function updateCanvasTransform() {
+        
+// ---------- CUSTOM DEFAULT IMAGE ----------
+const DEFAULT_IMAGE = './c0x4uB3X1R-O4tUH9Sllw_20f4493e92344469823d059571e21a02.jpg';
+
+function updateCanvasTransform() {
             canvasContainer.style.transform = `translate(${workspaceOffset.x}px, ${workspaceOffset.y}px) scale(${currentZoom})`;
         }
 
         // Canvas management functions
-        function addVariant(fromCanvasId) {
+        function addVariant(fromCanvasId, imgSrc = null) {
             canvasCount++;
             const sourceCanvas = document.querySelector(`[data-canvas-id="${fromCanvasId}"]`);
             const sourceLeft = parseInt(sourceCanvas.style.left);
@@ -1231,9 +1233,10 @@
             
             // Simulate variant generation
             setTimeout(() => {
-                const canvas = newCanvas.querySelector('.main-canvas');
+                const src = imgSrc || DEFAULT_IMAGE;
+        const canvas = newCanvas.querySelector('.main-canvas');
                 canvas.innerHTML = `
-                    <img src="https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=1920&h=1080&fit=crop" alt="Generated variant" class="canvas-image" style="filter: hue-rotate(${Math.random() * 360}deg) saturate(${0.8 + Math.random() * 0.4})">
+                    <img src="${src}" alt="Generated variant" class="canvas-image" style="filter: hue-rotate(${Math.random() * 360}deg) saturate(${0.8 + Math.random() * 0.4})">
                     <div class="object-overlay">
                         <div class="object-region" style="left: 5%; top: 60%; width: 90%; height: 30%; z-index: 10;" data-object="table" data-type="background"></div>
                         <div class="object-region" style="left: 0%; top: 10%; width: 100%; height: 25%; z-index: 10;" data-object="hedge" data-type="background"></div>
@@ -1526,7 +1529,7 @@
             
             // Create the variant
             if (pendingCanvasId) {
-                addVariant(pendingCanvasId);
+                addVariant(base, src);
             }
         }
 
